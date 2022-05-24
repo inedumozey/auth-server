@@ -7,7 +7,6 @@ const schema = new mongoose.Schema(
         },
         email: {
             type: String,
-            require: true,
             trim: true,
             unique: true
         },
@@ -19,6 +18,10 @@ const schema = new mongoose.Schema(
         userId: {
             type: String,
             unique: true
+        },
+        oauth: {
+            type: Boolean,
+            default: false
         },
         isAdmin: {
             type: Boolean,

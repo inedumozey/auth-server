@@ -1,18 +1,21 @@
 const mongoose = require('mongoose');
+const PASS_RESET_TOKEN_EXPIRED_IN = Number(process.env.PASS_RESET_TOKEN_EXPIRED_IN)
+
 const authSchema = new mongoose.Schema(
     {
-        passwordResetToken: {
-            type: String,
-            require: true
+        token: {
+            type: String
         },
         user: {
-            type: mongoose.Types.ObjectId,
+            type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
+        },
+        createdAt: {
+            type: Date,
+            expires: '3s', //will be removed after this time
+            default: Date.now()
         }
-    },
-    {
-        timestamps: true
     }
 )
 
-mongoose.model("PasswordRest", authSchema);
+mongoose.model("PasswordReset", authSchema);

@@ -16,20 +16,23 @@ module.exports = async(user, res)=>{
     
     if(PRODUCTION){
         const text = `
-        <div>
-            <h1
-                style="text-align:center; color: #c20 padding: 10px">
+        <div style="border: 2px solid #666; padding: 10px">
+            <h3
+                style="text-align:center; color: #c20; padding: 10px; background: teal">
                 Welcome!
-            </h1>
+            </h3>
 
             <div>
                 <div style="font-size: 1rem; text-align: center; padding: 10px">
                     Thanks for registering with us.
                 </div>
-                <a href="${URL}">Click to Verify Your Account</a>
+
+                <div style="display: flex; justify-content: center">
+                    <a style="display:inline-block; padding: 8px; background: teal; color: #fff; font-weight: 600" href="${URL}">Click to Verify Your Account</a>
+                </div>
             </div>
 
-            <div>${URL}</div>
+            <div style="text-align: center; margin: 5px 0">${URL}</div>
         </div>
         `
         const options = {
@@ -57,18 +60,16 @@ module.exports = async(user, res)=>{
                 }
             }
             else{
-                await user.save()
 
                 res.status(201).cookie("access", generateAccesstoken(user._id), {httOnly: true, maxAge: Number(process.env.COOKIE_ACCESS_DURATION)});
 
                 res.status(201).cookie("refresh", generateRefreshtoken(user._id), {httOnly: true, maxAge:  Number(process.env.COOKIE_REFRESH_DURATION)});
         
-                return res.status(200).json({status: true, msg: "Check your email to verify your account", isVerified: user.isVerified});
+                return res.status(200).json({status: true, msg: `Check your email (${user.email}) to verify your account`, isVerified: user.isVerified});
             }
         })                    
 
     }else{
-        await user.save();
 
         res.status(201).cookie("access", generateAccesstoken(user._id), {httOnly: true, maxAge: Number(process.env.COOKIE_ACCESS_DURATION)});
 

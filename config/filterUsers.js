@@ -1,10 +1,10 @@
 const mongoose = require('mongoose')
 const User = mongoose.model('User');
-
+const UNVERIFIED_USER_EXPIRED_IN = Number(process.env.UNVERIFIED_USER_EXPIRED_IN)
 module.exports = {
     removeUnVerifiedUsers: async()=>{
         const users = await User.find()
-        const expiresIn = 1000 * 60 * 5;
+        const expiresIn = UNVERIFIED_USER_EXPIRED_IN;
         const currentTime = new Date().getTime()
 
         for(let user of users){

@@ -1,13 +1,16 @@
 const mongoose = require('mongoose')
 const User = mongoose.model('User');
+const PasswordReset = mongoose.model('PasswordReset');
 const bcrypt = require("bcrypt");
 const createDOMPurify = require('dompurify');
 const {JSDOM} = require('jsdom');
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const verificationLink = require('../config/verificationLink');
+const passResetLink = require('../config/passResetLink');
 const filterUsers = require('../config/filterUsers')
 require("dotenv").config();
+const VERIFY_EMAILS = Boolean(process.env.VERIFY_EMAILS);
 
 const window = new JSDOM('').window;
 const DOMPurify = createDOMPurify(window)
@@ -22,7 +25,8 @@ function generateRefreshtoken(id){
 
 const ran = {
     token: ()=>crypto.randomBytes(64).toString('base64url'),
-    id: ()=>crypto.randomBytes(16).toString('hex')
+    id: ()=>crypto.randomBytes(16).toString('hex'),
+    resetToken: ()=>crypto.randomBytes(64).toString('base64url')
 }
 
 module.exports ={
@@ -65,13 +69,21 @@ module.exports ={
                 const user = new User({
                     email,
                     username,
-                    token: ran.token(),
+                    token: VERIFY_EMAILS ? ran.token() : "",
+                    isVerified: VERIFY_EMAILS ? false : true,
                     userId: ran.id(),
                     password: hashedPass
                 })
             
                 //send account activation link to the users
-                verificationLink(user, res)
+                if(VERIFY_EMAILS){
+                    await user.save();
+                    verificationLink(user, res)
+                }else{
+                    await user.save()
+                    return res.status(200).json({status: true, msg: "Registration successfull", isVerified: user.isVerified})
+                    
+                }
             }
         }
         catch(err){
@@ -133,6 +145,9 @@ module.exports ={
                     return res.status(400).json({status: false, msg: "Invalid token or you may have been removed due to not verifying your account for up to 72 hours. Please register again or resend link"})
                             
                  }else{
+                    if(user.isVerified){
+                        return res.status(200).json({status: true, msg: "Your account is already verified", isVerified: user.isVerified})
+                    }
 
                     user.isVerified = true;
                     user.token = "";
@@ -212,29 +227,108 @@ module.exports ={
         }
     },
 
-
-
-    // "Server error! Please contact the admin"
-
-
-
-
-
     resetPassRequest: async(req, res)=>{
         try{
-            res.send("Request Reset Password route");
+            const {email} = req.body;
+
+            if(!email){
+                return res.status(400).json({status: false, msg: "The field is required!"});
+
+            }
+            else{
+                const user = await User.findOne({$or: [{email}, {username: email}]});
+                if(!user){
+                    return res.status(400).json({status: false, msg: "User not found! Please register"});
+
+                }
+                if(!user.isVerified){
+                    return res.status(400).json({status: false, msg: "Your account is not verified"});
+                }
+                if(VERIFY_EMAILS){
+                    // check passwordReset collection if user already exist, then update the toke
+                    const oldUser = await PasswordReset.findOne({user: user._id})
+                    
+                    if(oldUser){
+                        const passwordReset = await PasswordReset.findOneAndUpdate({user: user._id}, {$set: {token: ran.resetToken()}}, {new: true});
+                        const data = {email: user.email, passwordReset}
+                        passResetLink(data, res);
+
+                    }
+                    else{
+                        // otherwise generate and save token and also save the user             
+                        const passwordReset = new PasswordReset({
+                            token: ran.resetToken(),
+                            user: user._id
+                        })
+
+                        await passwordReset.save()
+                        const data = {email: user.email, passwordReset}
+                        passResetLink(data, res);
+                    }
+        
+                }
+                else{
+                    return res.status(200).json({status: true, msg: "Reset your password"});
+                }
+                
+            }
         }
         catch(err){
-            res.json({status: false, msg: "Server error, please contact us!"})
+            return res.status(505).json({status: false, msg: err.message});
         }
     },
 
     resetPass: async(req, res)=>{
         try{
-            res.send("Password Route");
+            const {token} = req.query;
+            
+            const data = {
+                password:  DOMPurify.sanitize(req.body.password),
+                cpassword: DOMPurify.sanitize(req.body.cpassword)
+            }
+
+            if(!data.password || !data.cpassword){
+                return res.status(400).json({status: false, msg: "Fill all required fields!"});
+    
+            }
+            if(data.password != data.cpassword){
+                return res.status(405).json({status: false, msg: "Passwords do not match!"});
+                
+            }
+            if(!token){
+                return res.status(400).json({status: false, msg: "Token is missing!"})
+
+            }
+
+            //search token in the database
+                
+            const token_ = await PasswordReset.findOne({token});
+
+            if(!token_){
+                return res.status(400).json({status: false, msg: "Invalid token"})
+            }
+                    
+            //use the token to find the user
+            const user = await User.findOne({_id: token_.user})
+            if(!user){
+                return res.status(400).json({status: false, msg: "User not found; you may have been removed due to not verifying your account for up to 72 hours. Please register again"});
+            }
+            
+            if(!user.isVerified){
+                return res.status(400).json({status: false, msg: "Your account is not verified"});
+            }
+            
+            // 1. remove the token from PasswordReset model
+            await PasswordReset.findOneAndUpdate({user: token_.user}, {$set: {token: ""}})
+            
+            // 2. update user model with password
+            const hashedPass = await bcrypt.hash(data.password, 10);
+            const u = await User.findOneAndUpdate({_id: token_.user}, {$set: {password: hashedPass}}, {new: true})
+            
+            return res.status(200).json({status: true, msg: "Password Changed"})
         }   
         catch(err){
-            res.json({status: false, msg: "Server error, please contact us!"})
+            return res.status(505).json({status: false, msg: err.message});
         }
     },
 
