@@ -1,0 +1,36 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "dev": "nodemon main"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "cloudinary": "^1.29.1",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dompurify": "^2.3.8",
+    "express": "^4.17.3",
+    "jsdom": "^19.0.0",
+    "jsondom": "^0.4.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^6.3.0",
+    "nodemailer": "^6.7.3"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inedumozey/auth-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/inedumozey/auth-server/issues"
+  },
+  "homepage": "https://github.com/inedumozey/auth-server#readme"
+}
